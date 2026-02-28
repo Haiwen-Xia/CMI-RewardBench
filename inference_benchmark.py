@@ -50,6 +50,7 @@ class InferenceArgs:
     model_init_kwargs: Optional[Dict[str, Any]] = None
     model_score_kwargs: Optional[Dict[str, Any]] = None
     run_evaluate: bool = True
+    fail_on_error: bool = True
     output_dir: Optional[str] = None
     model_class_path: Optional[str] = None
 
@@ -176,6 +177,7 @@ def _predict_side(
     max_dur: float,
     model_score_kwargs: Optional[Dict[str, Any]],
     desc_prefix: str,
+    fail_on_error: bool,
 ) -> Dict[int, Dict[str, Any]]:
     """Predict one side (A or B) for all rows.
 
@@ -201,6 +203,14 @@ def _predict_side(
             batch_inputs.append(inp)
             batch_meta.append((idx, valid, err))
 
+        invalid_meta = [(idx, err) for idx, valid, err in batch_meta if not valid]
+        if invalid_meta and fail_on_error:
+            idx, err = invalid_meta[0]
+            row_idx = rows[idx].get("_row_index", idx)
+            raise RuntimeError(
+                f"Inference input invalid at dataset_row={row_idx}, side={side_key}: {err}. "
+            )
+
         try:
             scores = model.score_batch(
                 inputs=batch_inputs,
@@ -216,6 +226,12 @@ def _predict_side(
                     "error": err,
                 }
         except Exception as e:
+            if fail_on_error:
+                first_idx = batch_meta[0][0] if batch_meta else -1
+                dataset_row = rows[first_idx].get("_row_index", first_idx) if first_idx >= 0 else -1
+                raise RuntimeError(
+                    f"Inference failed at dataset={desc_prefix}, side={side_key}, dataset_row={dataset_row}: {e}. "
+                ) from e
             for row_idx, valid, err in batch_meta:
                 outputs[row_idx] = {
                     "alignment": None,
@@ -361,6 +377,7 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
             max_dur=args.max_dur,
             model_score_kwargs=args.model_score_kwargs,
             desc_prefix=ds_name,
+            fail_on_error=args.fail_on_error,
         )
         pred_b = _predict_side(
             model=model,
@@ -370,6 +387,7 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
             max_dur=args.max_dur,
             model_score_kwargs=args.model_score_kwargs,
             desc_prefix=ds_name,
+            fail_on_error=args.fail_on_error,
         )
 
         for i, item in enumerate(subset):
@@ -393,9 +411,9 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
 
             pref_align = _pair_pref_label(align_a, align_b)
             pref_music = _pair_pref_label(mus_a, mus_b)
-            overall_a = None if align_a is None or mus_a is None else (align_a + mus_a)
-            overall_b = None if align_b is None or mus_b is None else (align_b + mus_b)
-            pref_overall = _pair_pref_label(overall_a, overall_b)
+            # overall_a = None if align_a is None or mus_a is None else (align_a + mus_a)
+            # overall_b = None if align_b is None or mus_b is None else (align_b + mus_b)
+            pref_overall = _pair_pref_label(mus_a, mus_b)#_pair_pref_label(overall_a, overall_b)  #! Music Arena labels are closer to musicality
 
             if pref_overall is not None:
                 base["predicted_preference"] = pref_overall
@@ -443,6 +461,7 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
         "run_dir": str(run_dir.resolve()),
         "results_jsonl": str(results_jsonl.resolve()),
         "num_rows": len(out_rows),
+        "fail_on_error": args.fail_on_error,
         "eval_report": eval_report,
     }
     metadata_path = run_dir / "metadata.json"
@@ -462,8 +481,8 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
 def _parse_args() -> InferenceArgs:
     parser = argparse.ArgumentParser(description="Benchmark inference prototype")
     parser.add_argument("--checkpoint", '-c', required=True)
-    parser.add_argument("--dataset_jsonl", required=True)
-    parser.add_argument("--dataset_root", required=True)
+    parser.add_argument("--dataset_jsonl", default=str(Path(__file__).parent / "data" / "all_test.jsonl"))
+    parser.add_argument("--dataset_root", default=str(Path(__file__).parent / "data"))
     parser.add_argument("--results_root", default=str(Path(__file__).parent / "results"))
     parser.add_argument(
         "--model",
@@ -488,7 +507,7 @@ def _parse_args() -> InferenceArgs:
         help="Optional custom model class path: module.submodule:ClassName",
     )
     parser.add_argument("--device", default="cuda:0")
-    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--batch_size", type=int, default=12)
     parser.add_argument("--max_dur", type=float, default=120.0)
     parser.add_argument(
         "--model_init_kwargs_json",
@@ -500,7 +519,7 @@ def _parse_args() -> InferenceArgs:
         default=None,
         help='Extra kwargs for model.score_batch, JSON dict string. Example: {"some_flag": true}',
     )
-    parser.set_defaults(run_evaluate=True)
+    parser.set_defaults(run_evaluate=True, fail_on_error=True)
     parser.add_argument("--no_run_evaluate", dest="run_evaluate", action="store_false")
     ns = parser.parse_args()
     ns.model_init_kwargs = _parse_json_dict_arg(ns.model_init_kwargs_json, "model_init_kwargs_json")

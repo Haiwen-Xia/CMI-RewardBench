@@ -1,27 +1,32 @@
 #!/usr/bin/env bash
-data_root='data'
-pip install huggingface_hub
-pip install datasets
-pip install soundfile
 
 echo "needs to login to huggingface hub"
 read -r -p "Logged in..."
 
-mkdir -p "$data_root"
+mkdir -p "data"
 echo "Downloading MusicEval dataset..."
 
 echo "Downloading MusicEval dataset..."
-python "$data_root"/download_musiceval.py
 
+hf download BAAI/MusicEval data/test-00000-of-00001.parquet --local-dir data/MusicEval_data --repo-type dataset 
+
+python "data"/download_musiceval.py
+
+echo "Downloaded MusicEval dataset to data/MusicEval_data/"
 
 echo "Downloading PAM Music..."
-wget -c -L --content-disposition \
-  "https://zenodo.org/records/10737388/files/human_eval.zip?download=1"
-unzip -q human_eval.zip -d "$data_root"
+wget -c -L --content-disposition "https://zenodo.org/records/10737388/files/human_eval.zip?download=1"
+unzip -q human_eval.zip -d "data"
 rm human_eval.zip
 
+echo "Downloaded PAM Music dataset to data/human_eval/"
+
 echo "Downloading MusicArena dataset..."
-hf download music-arena/music-arena-dataset --local-dir "$data_root/MusicArena_data" --repo-type dataset
+huggingface-cli download music-arena/music-arena-dataset --local-dir "data/MusicArena_data" --repo-type dataset  --resume-download
+
+echo "Downloaded MusicArena dataset to data/MusicArena_data/"
 
 echo "Downloading CMI-Pref dataset..."
-hf download HaiwenXia/cmi-pref --local-dir "$data_root/cmi-pref" --repo-type dataset
+huggingface-cli download HaiwenXia/cmi-pref --local-dir data/cmi-pref --repo-type dataset  --resume-download
+
+echo "Downloaded CMI-Pref dataset to data/cmi-pref/"

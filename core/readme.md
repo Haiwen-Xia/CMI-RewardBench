@@ -89,7 +89,7 @@ scores = model.score_batch(
     batch_size: int = 4,
     max_dur: float = 30.0,
     dur_step: float = None,
-    show_progress: bool = True
+    show_progress: bool = False
 ) -> np.ndarray               # [N, 2] array, [:, 0]=alignment, [:, 1]=quality
 ```
 
@@ -195,4 +195,4 @@ scores = model.score(audio=waveform, text="Description")
 
 
 ### Sample Benchmarking Script
-`RewardModel/evaluate.py` provides a full example of loading a dataset and evaluating the model on multiple samples, saving results to JSONL. See the script for details on usage and options.
+`` provides a full example of loading a dataset and evaluating the model on multiple samples, saving results to JSONL. See the script for details on usage and options.

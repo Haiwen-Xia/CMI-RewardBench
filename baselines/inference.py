@@ -30,8 +30,7 @@ Path notes
 This module adds ``<CMI-RewardBench>/models/cmi-rm/src`` to ``sys.path``
 so that MuQ model modules are importable.
 
-If your layout differs, set ``CMI_RM_SRC`` to the directory that contains
-the ``muq`` package.
+The MuQ modules are modifed. The model code is at ``<CMI-RewardBench>/models/cmi-rm/src/muq/muq_mulan/models/mymodel.py``.
 """
 from __future__ import annotations
 
@@ -309,7 +308,7 @@ class RewardModelInference:
         batch_size: int = 4,
         max_dur: float = 30.0,
         dur_step: Optional[float] = None,
-        show_progress: bool = True,
+        show_progress: bool = False,
     ) -> np.ndarray:
         """Score a list of items.
 
@@ -350,17 +349,17 @@ class RewardModelInference:
             it = tqdm(it, desc="Scoring (final)")
         for start in it:
             group = inputs[start : start + batch_size]
-            all_scores.append(self._forward_final_group(group, max_dur).cpu())
-        return torch.cat(all_scores, dim=0).numpy()
+            all_scores.append(self._forward_final_group(group, max_dur, batch_size).cpu())
+        return torch.cat(all_scores, dim=0).float().numpy()
 
     @torch.no_grad()
-    def _forward_final_group(self, group: List[Dict], max_dur: float) -> torch.Tensor:
+    def _forward_final_group(self, group: List[Dict], max_dur: float, batch_size: int) -> torch.Tensor:
         texts  = [g.get("text",   "") for g in group]
         lyrics = [g.get("lyrics", "") for g in group]
 
         # Eval audio: crop → chunk-encode → concat per sample
         eval_waves = [self._load_wave(g["audio"], max_dur) for g in group]
-        e_eval_list, m_eval_list = self._chunk_encode(eval_waves)
+        e_eval_list, m_eval_list = self._chunk_encode(eval_waves, encode_batch=batch_size)
         e_eval, m_eval = _pad_embed_seqs(e_eval_list, m_eval_list)
         e_eval = e_eval.to(self.device)
         m_eval = m_eval.to(self.device)
@@ -374,7 +373,7 @@ class RewardModelInference:
                 else torch.zeros(self.sr)
                 for g in group
             ]
-            e_ref_list, m_ref_list = self._chunk_encode(ref_waves)
+            e_ref_list, m_ref_list = self._chunk_encode(ref_waves, encode_batch=batch_size)
             e_ref, m_ref = _pad_embed_seqs(e_ref_list, m_ref_list)
             e_ref = e_ref.to(self.device)
             m_ref = m_ref.to(self.device)
@@ -396,7 +395,7 @@ class RewardModelInference:
     def _chunk_encode(
         self,
         waveforms: List[torch.Tensor],
-        encode_batch: int = 32,
+        encode_batch: int = 8,
     ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """Encode each waveform by splitting into CHUNK_SECONDS chunks.
 
@@ -414,10 +413,12 @@ class RewardModelInference:
         for start in range(0, len(all_chunks), encode_batch):
             batch_waves = all_chunks[start : start + encode_batch]
             padded, att = _pad_waveforms(batch_waves)
-            e, m = self.model.audio_module(
-                padded.to(self.device),
-                attention_mask=att.to(self.device),
-            )
+            with self._autocast():
+                e, m = self.model.audio_module(
+                    padded.to(self.device),
+                    mask=att.to(self.device),
+                    return_mask=True, return_mean=False,
+                )
             for j in range(e.shape[0]):
                 valid_mask = m[j].cpu()
                 embed_per_chunk.append(e[j].cpu()[valid_mask])   # keep valid frames only
@@ -489,7 +490,7 @@ class RewardModelInference:
             final[inp_idx]  += raw[seg_idx]
             counts[inp_idx] += 1
         counts.clamp_(min=1)
-        return (final / counts.unsqueeze(-1)).numpy()
+        return (final / counts.unsqueeze(-1)).float().numpy()
 
     @torch.no_grad()
     def _forward_standard_batch(self, batch: List[Dict]) -> torch.Tensor:
@@ -497,10 +498,11 @@ class RewardModelInference:
         lyrics = [b["lyrics"] for b in batch]
 
         eval_padded, eval_att = _pad_waveforms([b["wav"] for b in batch])
-        e_eval, m_eval = self.model.audio_module(
-            eval_padded.to(self.device),
-            attention_mask=eval_att.to(self.device),
-        )
+        with self._autocast():
+            e_eval, m_eval = self.model.audio_module(
+                eval_padded.to(self.device),
+                mask=eval_att.to(self.device),
+            )
 
         has_ref = any(b.get("ref_wav") is not None for b in batch)
         if has_ref:
@@ -509,10 +511,11 @@ class RewardModelInference:
                 for b in batch
             ]
             ref_padded, ref_att = _pad_waveforms(ref_waves)
-            e_ref, m_ref = self.model.audio_module(
-                ref_padded.to(self.device),
-                attention_mask=ref_att.to(self.device),
-            )
+            with self._autocast():
+                e_ref, m_ref = self.model.audio_module(
+                    ref_padded.to(self.device),
+                    attention_mask=ref_att.to(self.device),
+                )
         else:
             e_ref = torch.zeros_like(e_eval[:, :1])
             m_ref = torch.zeros(len(batch), 1, dtype=torch.bool, device=self.device)
