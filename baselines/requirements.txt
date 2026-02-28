@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# Core runtime (inference)
+torch==2.10.0
+torchaudio==2.10.0
+transformers==4.57.3
+einops
+librosa
+nnAudio
+numpypip
+soundfile
+tqdm
+easydict
+x_clip
+omegaconf

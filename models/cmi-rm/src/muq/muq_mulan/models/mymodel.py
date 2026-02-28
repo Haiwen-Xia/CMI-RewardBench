@@ -1039,30 +1039,6 @@ class RewardAttentionModel(nn.Module):
         
         return output_embeds, output_mask
     
-    def _detect_null_content(
-        self,
-        embeds: torch.Tensor,
-        mask: torch.Tensor,
-        threshold: float = 0.1,
-    ) -> torch.Tensor:
-        """Detect which samples have effectively null/empty content
-        
-        Args:
-            embeds: Input embeddings [batch, seq_len, dim]
-            mask: Input mask [batch, seq_len]
-            threshold: Minimum ratio of valid tokens to consider non-null
-            
-        Returns:
-            Boolean tensor [batch] indicating which samples are null
-        """
-        # Count valid tokens per sample
-        valid_count = mask.sum(dim=1)  # [batch]
-        total_count = mask.shape[1]
-        
-        # Consider null if less than threshold ratio of tokens are valid
-        is_null = valid_count < (total_count * threshold)
-        
-        return is_null
 
     def forward_from_preextracted(
         self,
@@ -1143,13 +1119,8 @@ class RewardAttentionModel(nn.Module):
         
         # Handle no_condition mode: when prompt_text_embeds is None
         if prompt_text_embeds is None:
-            if skip_null:
-                text_embeds_ds = torch.zeros(batch_size, 0, self.dim, dtype=model_dtype, device=device)
-                text_mask_ds = torch.zeros(batch_size, 0, dtype=torch.bool, device=device)
-            else:
-                null_text = self.null_text_embedding.to(device=device, dtype=model_dtype)
-                text_embeds_ds = null_text.expand(batch_size, -1, -1)
-                text_mask_ds = torch.ones(batch_size, text_embeds_ds.shape[1], dtype=torch.bool, device=device)
+            text_embeds_ds = torch.zeros(batch_size, 0, self.dim, dtype=model_dtype, device=device)
+            text_mask_ds = torch.zeros(batch_size, 0, dtype=torch.bool, device=device)
         else:
             # Apply downsamplers first (before dropout, so null embedding size matches)
             text_embeds_ds, text_mask_ds = self.text_downsampler(prompt_text_embeds, prompt_text_mask)
@@ -1163,13 +1134,8 @@ class RewardAttentionModel(nn.Module):
         
         # Handle no_condition mode: when prompt_lyrics_embeds is None
         if prompt_lyrics_embeds is None:
-            if skip_null:
-                lyrics_embeds_ds = torch.zeros(batch_size, 0, self.dim, dtype=model_dtype, device=device)
-                lyrics_mask_ds = torch.zeros(batch_size, 0, dtype=torch.bool, device=device)
-            else:
-                null_lyrics = self.null_lyrics_embedding.to(device=device, dtype=model_dtype)
-                lyrics_embeds_ds = null_lyrics.expand(batch_size, -1, -1)
-                lyrics_mask_ds = torch.ones(batch_size, lyrics_embeds_ds.shape[1], dtype=torch.bool, device=device)
+            lyrics_embeds_ds = torch.zeros(batch_size, 0, self.dim, dtype=model_dtype, device=device)
+            lyrics_mask_ds = torch.zeros(batch_size, 0, dtype=torch.bool, device=device)
         else:
             lyrics_embeds_ds, lyrics_mask_ds = self.lyrics_downsampler(prompt_lyrics_embeds, prompt_lyrics_mask)
             lyrics_embeds_ds, lyrics_mask_ds = self._apply_modality_dropout(
@@ -1183,13 +1149,8 @@ class RewardAttentionModel(nn.Module):
         
         # Handle no_condition mode for prompt_audio_embeds
         if prompt_audio_embeds is None:
-            if skip_null:
-                ref_audio_embeds_ds = torch.zeros(batch_size, 0, self.dim, dtype=model_dtype, device=device)
-                ref_audio_mask_ds = torch.zeros(batch_size, 0, dtype=torch.bool, device=device)
-            else:
-                null_audio = self.null_audio_embedding.to(device=device, dtype=model_dtype)
-                ref_audio_embeds_ds = null_audio.expand(batch_size, -1, -1)
-                ref_audio_mask_ds = torch.ones(batch_size, ref_audio_embeds_ds.shape[1], dtype=torch.bool, device=device)
+            ref_audio_embeds_ds = torch.zeros(batch_size, 0, self.dim, dtype=model_dtype, device=device)
+            ref_audio_mask_ds = torch.zeros(batch_size, 0, dtype=torch.bool, device=device)
         else:
             ref_audio_embeds_ds, ref_audio_mask_ds = self.ref_downsampler(prompt_audio_embeds, prompt_audio_mask)
             ref_audio_embeds_ds, ref_audio_mask_ds = self._apply_modality_dropout(

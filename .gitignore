@@ -2,3 +2,7 @@ data/
 baselines/model
 
 __pycache__/
+
+results/
+
+storage/
