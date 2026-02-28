@@ -1,62 +1,62 @@
 # Benchmark Custom Model Interface
 
-本说明介绍如何在当前仓库结构下接入自定义模型到 `inference_benchmark.py`。
+This guide explains how to plug a custom model into `inference_benchmark.py` under the current repository structure.
 
-## 0) 当前目录结构（关键部分）
+## 0) Current directory layout (key parts)
 
-- `core/`：benchmark 核心接口与默认适配器
-  - `core/model_abc.py`：抽象类定义
-  - `core/model_interface.py`：默认 `RewardModelAdapter`
-- `custom_models/`：用户重载入口（你需要实现/修改的地方）
-- `models/`：模型依赖代码（例如 `models/cmi-rm/src`）
-- `baselines/`：官方 CMI-RM 推理接口（与 benchmark 解耦，可独立用于其他任务）
+- `core/`: benchmark core interfaces and default adapter
+  - `core/model_abc.py`: abstract interface definitions
+  - `core/model_interface.py`: default `RewardModelAdapter`
+- `custom_models/`: user override entry points (where you implement custom models)
+- `models/`: model dependency code (for example `models/cmi-rm/src`)
+- `baselines/`: official CMI-RM inference interface (decoupled from benchmark, reusable for other tasks)
 
-## 1) 抽象接口定义
+## 1) Abstract interface definition
 
-接口定义在 `core/model_abc.py`。
+The interface is defined in `core/model_abc.py`.
 
-必须实现：
-- `sr` 属性（`int`）
+Required members:
+- `sr` property (`int`)
 - `score_batch(inputs, batch_size, max_dur, **kwargs) -> np.ndarray`
 
-输入类型：`BenchmarkBatchInput`
-- `audio`: 音频路径或 waveform tensor
-- `text`: prompt 文本
-- `lyrics`: 歌词文本
-- `ref_audio`: 参考音频路径或 waveform tensor
+Input type: `BenchmarkBatchInput`
+- `audio`: audio path or waveform tensor
+- `text`: prompt text
+- `lyrics`: lyrics text
+- `ref_audio`: reference audio path or waveform tensor
 
-输出格式：
-- `np.ndarray`，shape 为 `[N, 2]`
-- 第 0 列：alignment
-- 第 1 列：musicality
+Output format:
+- `np.ndarray` with shape `[N, 2]`
+- column 0: alignment
+- column 1: musicality
 
-## 2) 自定义模型放置位置
+## 2) Where to place custom models
 
-推荐放在：`custom_models/`
+Recommended location: `custom_models/`
 
-示例文件：`custom_models/sample_model.py`
-示例类：`CMIRewardModelBaseline`
+Example file: `custom_models/sample_model.py`
+Example class: `CMIRewardModelBaseline`
 
-调用方式：
+Usage:
 - `--model_class_path custom_models.sample_model:CMIRewardModelBaseline`
 
-## 3) 自定义模型初始化行为
+## 3) Custom model initialization behavior
 
-当提供 `--model_class_path` 时，benchmark 会执行：
+When `--model_class_path` is provided, benchmark executes:
 
 `YourModelClass(**init_kwargs)`
 
-并自动注入：
-- `checkpoint`（来自 `--checkpoint/-c`）
-- `device`（来自 `--device`）
+and automatically injects:
+- `checkpoint` (from `--checkpoint/-c`)
+- `device` (from `--device`)
 
-可选扩展：
-- `--model_init_kwargs_json`：传构造参数（例如 `{"sr":24000,"mode":"final","config":"/path/config.yaml"}`）
-- `--model_score_kwargs_json`：透传给 `score_batch(..., **kwargs)`
+Optional extensions:
+- `--model_init_kwargs_json`: pass constructor args (for example `{"sr":24000,"mode":"final","config":"/path/config.yaml"}`)
+- `--model_score_kwargs_json`: forwarded to `score_batch(..., **kwargs)`
 
-## 4) 运行 benchmark
+## 4) Run benchmark
 
-默认内置适配器（走 `core/model_interface.py`）：
+Default built-in adapter (via `core/model_interface.py`):
 
 ```bash
 python inference_benchmark.py \
@@ -67,7 +67,7 @@ python inference_benchmark.py \
   --reward_model_backend final
 ```
 
-自定义模型：
+Custom model:
 
 ```bash
 python inference_benchmark.py \
@@ -79,11 +79,11 @@ python inference_benchmark.py \
   --dataset_root /path/to/dataset_root
 ```
 
-## 5) `baselines/` 的定位
+## 5) Role of `baselines/`
 
-`baselines/` 不属于 benchmark 核心流程；它提供官方 CMI-RM 的通用推理接口，便于外部任务复用。
+`baselines/` is not part of the benchmark core flow; it provides the official CMI-RM general inference API so users can reuse it outside benchmark tasks.
 
-当前 baseline 约定：
-- checkpoint 使用 `model.safetensors`
-- 模型结构配置使用 `config.yaml`
-- 推理模式支持 `mode=final` 和 `mode=standard`
+Current baseline conventions:
+- checkpoint uses `model.safetensors`
+- model structure config uses `config.yaml`
+- inference supports both `mode=final` and `mode=standard`
