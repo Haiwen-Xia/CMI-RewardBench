@@ -1,0 +1,18 @@
+filter:
+  split: test
+
+metrics:
+  include_lcc: true
+  include_k_tau: true
+
+groups:
+  musicarena_by_month: true
+  cmi_by_confidence: true
+  cmi_by_modality: true
+  by_duration: false
+  duration_bin: [10, 30, 60, 120, 500]
+
+outputs:
+  summary_csv: metrics_summary.csv
+  detail_csv: metrics_detail.csv
+  json: metrics.json
