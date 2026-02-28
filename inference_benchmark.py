@@ -41,16 +41,15 @@ class InferenceArgs:
     dataset_jsonl: str
     dataset_root: str
     results_root: str = str(Path(__file__).parent / "results")
+    model: str = "cmi_rm"
     split: str = "test"
     subset: str = "all"
-    reward_model_backend: str = "final"
     device: str = "cuda:0"
     batch_size: int = 4
     max_dur: float = 30.0
     model_init_kwargs: Optional[Dict[str, Any]] = None
     model_score_kwargs: Optional[Dict[str, Any]] = None
     run_evaluate: bool = True
-    eval_yaml: Optional[str] = None
     output_dir: Optional[str] = None
     model_class_path: Optional[str] = None
 
@@ -259,22 +258,43 @@ def _load_custom_model_class(class_path: str) -> Type[BenchmarkModelABC]:
 
 
 def _build_model(args: InferenceArgs) -> BenchmarkModelABC:
+    model_name = (args.model).strip()
+    init_kwargs = dict(args.model_init_kwargs or {})
+    init_kwargs.setdefault("checkpoint", args.checkpoint)
+    init_kwargs.setdefault("device", args.device)
+
+    # Explicit custom model class path has highest priority.
     if args.model_class_path:
         cls = _load_custom_model_class(args.model_class_path)
-        init_kwargs = dict(args.model_init_kwargs or {})
-        init_kwargs.setdefault("checkpoint", args.checkpoint)
-        init_kwargs.setdefault("device", args.device)
         return cls(**init_kwargs)
 
-    from core.model_interface import RewardModelAdapter, RewardModelAdapterConfig
+    if model_name == "cmi_rm":
+        from core.model_interface import RewardModelAdapter, RewardModelAdapterConfig
 
-    return RewardModelAdapter(
-        RewardModelAdapterConfig(
-            checkpoint=args.checkpoint,
-            device=args.device,
-            mode=args.reward_model_backend,
-            init_kwargs=args.model_init_kwargs,
+        return RewardModelAdapter(
+            RewardModelAdapterConfig(
+                checkpoint=args.checkpoint,
+                device=args.device,
+                mode="final",
+                init_kwargs=args.model_init_kwargs,
+            )
         )
+
+    if model_name == "cmi_rm_head":
+        from core.model_interface import RewardModelAdapter, RewardModelAdapterConfig
+
+        return RewardModelAdapter(
+            RewardModelAdapterConfig(
+                checkpoint=args.checkpoint,
+                device=args.device,
+                mode="standard",
+                init_kwargs=args.model_init_kwargs,
+            )
+        )
+
+    raise ValueError(
+        f"Unknown --model '{model_name}'. Supported:  cmi_rm, cmi_rm_head "
+        "Use --model_class_path module.submodule:ClassName for custom models."
     )
 
 
@@ -295,10 +315,19 @@ def _ckpt_tag(checkpoint: str) -> str:
     return ckpt_path.name
 
 
+def _model_name_tag(args: InferenceArgs) -> str:
+    if args.model_class_path:
+        raw = args.model_class_path.split(":")[-1]
+    else:
+        raw = args.model
+    return raw.replace(":", "__").replace("/", "_").replace(" ", "_")
+
+
 def _resolve_run_dir(args: InferenceArgs) -> Path:
     if args.output_dir:
         return Path(args.output_dir)
-    return Path(args.results_root) / _ckpt_tag(args.checkpoint)
+    model_dir = _model_name_tag(args)
+    return Path(args.results_root) / model_dir / _ckpt_tag(args.checkpoint)
 
 
 def main_func(args: InferenceArgs) -> Dict[str, Any]:
@@ -389,16 +418,15 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
 
     eval_report = None
     if args.run_evaluate:
-        # try:
-        #     from RewardModel.benchmark.evaluate_results import EvaluateArgs, evaluate_from_rows
-        # except ModuleNotFoundError:
         from evaluate_results import EvaluateArgs, evaluate_from_rows
 
-        eval_args = EvaluateArgs(results_jsonl_abs="", output_dir_abs=str(run_dir), eval_yaml_abs=args.eval_yaml)
+        eval_yaml = str(Path(__file__).parent / "config" / "eval_benchmark.yaml")
+        eval_args = EvaluateArgs(results_jsonl_abs="", output_dir_abs=str(run_dir), eval_yaml_abs=eval_yaml)
         eval_report = evaluate_from_rows(rows=out_rows, args=eval_args)
 
     metadata = {
-        "reward_model_backend": args.reward_model_backend,
+        "model": args.model,
+        "model_name": _model_name_tag(args),
         "checkpoint": str(Path(args.checkpoint).resolve()),
         "dataset_jsonl": str(Path(args.dataset_jsonl).resolve()),
         "dataset_root": str(Path(args.dataset_root).resolve()),
@@ -437,7 +465,16 @@ def _parse_args() -> InferenceArgs:
     parser.add_argument("--dataset_jsonl", required=True)
     parser.add_argument("--dataset_root", required=True)
     parser.add_argument("--results_root", default=str(Path(__file__).parent / "results"))
-    parser.add_argument("--output_dir", default=None, help="Override run dir; default is results_root/ckpt_tag")
+    parser.add_argument(
+        "--model",
+        default="cmi_rm",
+        choices=["cmi_rm", "cmi_rm_head"],
+        help=(
+            "Built-in model selector. cmi_rm -> finalmode; "
+            "cmi_rm_head -> head mode."
+        ),
+    )
+    parser.add_argument("--output_dir", default=None, help="Override run dir; default is results_root/model_name/ckpt_tag")
     parser.add_argument("--split", default="test")
     parser.add_argument(
         "--subset",
@@ -446,17 +483,9 @@ def _parse_args() -> InferenceArgs:
         help="Infer a single benchmark subset or all",
     )
     parser.add_argument(
-        "--reward_model_backend",
-        "--inference_mode",
-        dest="reward_model_backend",
-        default="final",
-        choices=["standard", "final"],
-        help="Default adapter mode: standard=sliding-window inference, final=chunk-based inference",
-    )
-    parser.add_argument(
         "--model_class_path",
         default=None,
-        help="Optional custom model class path: module.submodule:ClassName (must inherit BenchmarkModelABC)",
+        help="Optional custom model class path: module.submodule:ClassName",
     )
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--batch_size", type=int, default=8)
@@ -471,12 +500,9 @@ def _parse_args() -> InferenceArgs:
         default=None,
         help='Extra kwargs for model.score_batch, JSON dict string. Example: {"some_flag": true}',
     )
-    parser.add_argument("--run_evaluate", dest="run_evaluate", action="store_true", default=True)
+    parser.set_defaults(run_evaluate=True)
     parser.add_argument("--no_run_evaluate", dest="run_evaluate", action="store_false")
-    parser.add_argument("--eval_yaml", default=None)
     ns = parser.parse_args()
-    if not ns.eval_yaml:
-        ns.eval_yaml = str(Path(__file__).parent / "config" / "eval_benchmark.yaml")
     ns.model_init_kwargs = _parse_json_dict_arg(ns.model_init_kwargs_json, "model_init_kwargs_json")
     ns.model_score_kwargs = _parse_json_dict_arg(ns.model_score_kwargs_json, "model_score_kwargs_json")
     ns_vars = vars(ns)
