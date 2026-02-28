@@ -9,7 +9,7 @@ This repository provides a unified benchmark and evaluation toolkit for **music 
 
 - **CMI-RewardBench**: A unified benchmark covering **musicality**, **text–music alignment**, and **compositional instruction alignment**.
 - **Evaluation Toolkit**: Everything you need to reproduce benchmark results and compute correlations with human judgments.
-- **Inference Baseline**: A simple, reusable inference interface to run our pre-trained **CMI Reward Models (CMI-RMs)**.
+- **Inference Baseline**: A strong, unified, reusable inference interface to run our pre-trained **CMI Reward Models (CMI-RMs)**.
 - **Data Assets**: Access to CMI-Pref-Pseudo, CMI-Pref, and other metadata seamlessly.
 
 ---
