@@ -30,6 +30,8 @@ This repository provides a unified benchmark and evaluation toolkit for **music 
 ### 1. Installation
 
 Install the standard packages for data downloading and evaluation:
+
+The python version `3.10.19` works for these dependencies.
 ```bash
 pip install -r requirements.txt
 ```

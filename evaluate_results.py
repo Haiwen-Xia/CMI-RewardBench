@@ -3,6 +3,20 @@
 
 - Input: results.jsonl produced by inference_benchmark.py
 - Output: pandas csv/json summaries
+
+Required keys by dataset in results rows:
+- PAM:
+    - ground truth: `musicality`, `text-music alignment`
+    - prediction: `predicted_musicality`, `predicted_text-music alignment`
+- MusicEval:
+    - ground truth: `musicality`
+    - prediction: `predicted_musicality`
+- MusicArena:
+    - ground truth: `preference`
+    - prediction: `predicted_preference`
+- CMI-Pref:
+    - ground truth: `preference-musicality`, `preference-alignment`
+    - prediction: `predicted_preference-musicality`, `predicted_preference-alignment`
 """
 
 import argparse
@@ -327,18 +341,10 @@ def _compute_summary_rows(df: pd.DataFrame, include_lcc: bool, include_k_tau: bo
             row["K-Tau"] = _safe_corr(tmp["musicality"], tmp["predicted_musicality"], "kendall")
         summary_rows.append(row)
 
-    # MusicArena: overall preference acc — predicted via musicality diff
-    # pred = model_b if predicted_musicality_b > predicted_musicality_a, else model_a
+    # MusicArena: overall preference acc — use explicit predicted_preference field
     ma = df[df["benchmark_dataset"] == "MusicArena"] if "benchmark_dataset" in df.columns else df.iloc[0:0]
     if not ma.empty:
-        ma = ma.copy()
-        mus_a = pd.to_numeric(ma.get("predicted_musicality"),   errors="coerce")
-        mus_b = pd.to_numeric(ma.get("predicted_musicality_b"), errors="coerce")
-        valid_mus = mus_a.notna() & mus_b.notna()
-        ma["predicted_preference_mus"] = None
-        ma.loc[valid_mus,  "predicted_preference_mus"] = "model_a"
-        ma.loc[valid_mus & (mus_b > mus_a), "predicted_preference_mus"] = "model_b"
-        acc_obj = _acc(ma[valid_mus], "preference", "predicted_preference_mus")
+        acc_obj = _acc(ma, "preference", "predicted_preference")
         summary_rows.append({
             "dataset": "MusicArena",
             "task": "preference",

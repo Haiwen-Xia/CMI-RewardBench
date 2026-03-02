@@ -413,10 +413,10 @@ def main_func(args: InferenceArgs) -> Dict[str, Any]:
             pref_music = _pair_pref_label(mus_a, mus_b)
             # overall_a = None if align_a is None or mus_a is None else (align_a + mus_a)
             # overall_b = None if align_b is None or mus_b is None else (align_b + mus_b)
-            pref_overall = _pair_pref_label(mus_a, mus_b)#_pair_pref_label(overall_a, overall_b)  #! Music Arena labels are closer to musicality
+            pref_musicarena = _pair_pref_label(mus_a, mus_b)#_pair_pref_label(overall_a, overall_b)  #! Music Arena labels are closer to musicality
 
-            if pref_overall is not None:
-                base["predicted_preference"] = pref_overall
+            if pref_musicarena is not None:
+                base["predicted_preference"] = pref_musicarena
             if pref_music is not None:
                 base["predicted_preference-musicality"] = pref_music
             if pref_align is not None:
