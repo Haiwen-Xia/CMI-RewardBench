@@ -1,11 +1,11 @@
 # CMI-RewardBench
 
-
-[`Yinghao Ma*`](https://nicolaus625.github.io/) | [`Haiwen Xia*`](https://haiwen-xia.github.io/) | Hewei Gao | Weixiong Chen | Yuxin Ye | Yuchen Yang | Sungkyun Chang | Mingshuo Ding | Yizhi Li | Ruibin Yuan | Simon Dixon | Emmanouil Benetos
 [![Arxiv Paper](https://img.shields.io/badge/arXiv-Paper-red.svg)](https://arxiv.org/abs/2603.00610)
 [![HuggingFace](https://img.shields.io/badge/HuggingFace-Paper-yellow)](https://huggingface.co/papers/2603.00610)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
+
+[`Yinghao Ma*`](https://nicolaus625.github.io/) | [`Haiwen Xia*`](https://haiwen-xia.github.io/) | Hewei Gao | Weixiong Chen | Yuxin Ye | Yuchen Yang | Sungkyun Chang | Mingshuo Ding | Yizhi Li | Ruibin Yuan | Simon Dixon | Emmanouil Benetos
 This repository provides a unified benchmark and evaluation toolkit for **music reward modeling** under **Compositional Multimodal Instruction (CMI)**, where generated music can be conditioned on **text descriptions**, **lyrics**, and **reference audio prompts**.
 
 ### ✨ Key Features
