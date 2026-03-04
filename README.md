@@ -1,6 +1,9 @@
 # CMI-RewardBench
 
-[![Arxiv Paper](https://img.shields.io/badge/arXiv-Paper-red.svg)](https://arxiv.org/pdf/2505.10793)
+
+[`Yinghao Ma*`](https://nicolaus625.github.io/) | [`Haiwen Xia*`](https://haiwen-xia.github.io/) | Hewei Gao | Weixiong Chen | Yuxin Ye | Yuchen Yang | Sungkyun Chang | Mingshuo Ding | Yizhi Li | Ruibin Yuan | Simon Dixon | Emmanouil Benetos
+[![Arxiv Paper](https://img.shields.io/badge/arXiv-Paper-red.svg)](https://arxiv.org/abs/2603.00610)
+[![HuggingFace](https://img.shields.io/badge/HuggingFace-Paper-yellow)](https://huggingface.co/papers/2603.00610)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
 This repository provides a unified benchmark and evaluation toolkit for **music reward modeling** under **Compositional Multimodal Instruction (CMI)**, where generated music can be conditioned on **text descriptions**, **lyrics**, and **reference audio prompts**.
@@ -173,4 +176,15 @@ CMI-RewardBench/
 ├── models/                  # Third-party model dependency folders
 ├── inference_benchmark.py   # Primary pipeline orchestrator entrypoint
 └── model_interface.md       # Full parameter delegation API references
+```
+
+## Citing CMI-RewardBench
+If you use CMI-RewardBench, including the dataset, benchmark,  or pre-trained CMI-RM models in your research, please cite our paper:
+```bibtex
+@article{ma2026cmirewardbench,
+      title={CMI-RewardBench: Evaluating Music Reward Models with Compositional Multimodal Instruction}, 
+      author={Yinghao Ma and Haiwen Xia and Hewei Gao and Weixiong Chen and Yuxin Ye and Yuchen Yang and Sungkyun Chang and Mingshuo Ding and Yizhi Li and Ruibin Yuan and Simon Dixon and Emmanouil Benetos},
+      journal={arXiv preprint arXiv:2603.00610},
+      year={2026},      
+}
 ```
