@@ -6,6 +6,7 @@
 
 
 [`Yinghao Ma*`](https://nicolaus625.github.io/) | [`Haiwen Xia*`](https://haiwen-xia.github.io/) | Hewei Gao | Weixiong Chen | Yuxin Ye | Yuchen Yang | Sungkyun Chang | Mingshuo Ding | Yizhi Li | Ruibin Yuan | Simon Dixon | Emmanouil Benetos
+
 This repository provides a unified benchmark and evaluation toolkit for **music reward modeling** under **Compositional Multimodal Instruction (CMI)**, where generated music can be conditioned on **text descriptions**, **lyrics**, and **reference audio prompts**.
 
 ### ✨ Key Features
