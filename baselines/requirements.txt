@@ -13,3 +13,4 @@ tqdm
 easydict
 x_clip
 omegaconf
+torchcodec
