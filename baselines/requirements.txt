@@ -7,7 +7,7 @@ transformers==4.57.3
 einops
 librosa
 nnAudio
-numpypip
+numpy
 soundfile
 tqdm
 easydict
